@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GNM Frames</title>
+    <style>
+      :root {
+        --bg: #eceae6;
+        --panel: rgba(255, 255, 255, 0.88);
+        --ink: #1d1d1f;
+        --muted: #6b6b70;
+        --line: rgba(0, 0, 0, 0.08);
+        --warn: #b4441c;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; overflow: hidden; }
+      #view { position: fixed; inset: 0; }
+      #panel {
+        position: fixed; left: 16px; top: 16px; width: 270px; padding: 14px 16px 12px;
+        background: var(--panel); backdrop-filter: blur(12px); border: 1px solid var(--line); border-radius: 12px;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
+        max-height: calc(100vh - 252px); overflow-y: auto;
+      }
+      #panel h1 { margin: 0 0 2px; font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
+      #panel .sub { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
+      #size { font: 600 22px/1.2 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: -0.02em; margin: 4px 0 10px; }
+      #panel dl { display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; margin: 0; }
+      #panel dt { color: var(--muted); }
+      #panel dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+      #panel dd.warn { color: var(--warn); font-weight: 600; }
+      #panel hr { border: 0; border-top: 1px solid var(--line); margin: 8px 0; }
+      #timing { margin-top: 10px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+      #drop { position: fixed; inset: 0; display: none; place-items: center; background: rgba(30, 30, 35, 0.35); color: white; font-size: 18px; font-weight: 600; pointer-events: none; }
+      #drop.on { display: grid; }
+      #panel [data-tip] { cursor: help; }
+      #panel dt[data-tip] { text-decoration: underline dotted rgba(0, 0, 0, 0.25); text-underline-offset: 3px; }
+      #tip {
+        position: fixed; z-index: 10; max-width: 260px; padding: 8px 10px; border-radius: 8px;
+        background: rgba(29, 29, 31, 0.94); color: #f5f5f7; font-size: 12px; line-height: 1.45;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18); pointer-events: none; opacity: 0; transition: opacity 0.12s;
+      }
+      #tip.on { opacity: 1; }
+      #error { position: fixed; inset: auto 16px 16px 16px; color: var(--warn); font-weight: 600; }
+      .lil-gui.root { --width: 300px; max-height: calc(100vh - 32px); overflow-y: auto; position: fixed; right: 16px; top: 16px; }
+      #styles {
+        position: fixed; left: 16px; right: 332px; bottom: 16px; padding: 12px;
+        background: var(--panel); backdrop-filter: blur(12px); border: 1px solid var(--line);
+        border-radius: 14px; box-shadow: 0 6px 24px rgba(0,0,0,0.06);
+      }
+      .style-heading { display: flex; align-items: baseline; gap: 10px; margin: 0 4px 3px; }
+      .style-heading h2 { margin: 0; font-size: 14px; font-weight: 650; }
+      .style-heading span { color: var(--muted); font-size: 11px; }
+      #style-description, #temple-description { color: var(--muted); font-size: 12px; margin: 0 4px 10px; }
+      #style-list, #temple-list { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: thin; }
+      .collection-tabs { display: flex; gap: 4px; margin: 0 2px 9px; }
+      .collection-tabs button { background: transparent; border: 0; border-radius: 6px; padding: 5px 12px; color: var(--muted); font: inherit; cursor: pointer; }
+      .collection-tabs button[aria-selected="true"] { background: #e8e3dc; color: var(--ink); font-weight: 600; }
+      .collection-tabs button:focus-visible { outline: 3px solid #46749b; }
+      [hidden] { display: none !important; }
+      #styles-toggle { margin-left: auto; background: transparent; border: 0; border-radius: 6px; padding: 5px 10px; color: var(--muted); font: inherit; cursor: pointer; }
+      #styles-toggle:hover { color: var(--ink); }
+      #styles-toggle:focus-visible { outline: 3px solid #46749b; }
+      /* Hidden: only the toggle stays, as a small pill. */
+      #styles.collapsed { right: auto; padding: 4px; }
+      #styles.collapsed .collection-tabs { margin: 0; }
+      #styles.collapsed [role="tab"], #styles.collapsed [role="tabpanel"] { display: none !important; }
+      #styles.collapsed #styles-toggle { margin-left: 0; color: var(--ink); font-weight: 600; }
+      .style-card {
+        flex: 0 0 112px; padding: 2px 6px 9px; border: 1px solid var(--line); border-radius: 9px;
+        background: rgba(255,255,255,0.55); color: var(--ink); cursor: pointer; font: inherit;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .style-card svg { display: block; width: 100%; height: 53px; }
+      .style-card span { font-size: 11px; font-weight: 550; }
+      .style-card:hover { background: #fff; border-color: #a9a29a; }
+      .style-card[aria-pressed="true"] { background: #fff; border-color: #51463b; box-shadow: 0 0 0 1px #51463b; }
+      .style-card:focus-visible { outline: 3px solid #46749b; outline-offset: 2px; }
+      @media (max-width: 720px) {
+        #panel { width: auto; right: 16px; top: auto; bottom: 16px; cursor: pointer; max-height: 45vh; }
+        #panel .sub, #panel #stats, #panel #timing { display: none; }
+        #panel.open .sub, #panel.open #stats, #panel.open #timing { display: block; }
+        #panel.open #stats { display: grid; max-height: 40vh; overflow-y: auto; }
+        #panel #size::after { content: " ▸"; color: var(--muted); font-size: 14px; }
+        #panel.open #size::after { content: " ▾"; }
+        .lil-gui.root { --width: calc(100vw - 32px); max-height: 45vh; }
+        #styles { right: 16px; bottom: 100px; padding: 10px; }
+        #style-description, #temple-description { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .style-card { flex-basis: 96px; }
+        #panel.open { z-index: 2; }
+      }
+    </style>
+    <script type="module" crossorigin src="./gnmframes.js"></script>
+  </head>
+  <body>
+    <div id="view"></div>
+    <div id="panel">
+      <h1>GNM Frames</h1>
+      <div class="sub">Frames fitted to the GNM head. Move any identity slider and they refit.</div>
+      <div id="size">–</div>
+      <dl id="stats"></dl>
+      <div id="timing"></div>
+    </div>
+    <section id="styles" aria-label="Frame styles">
+      <div class="collection-tabs" role="tablist" aria-label="Choose frames or temples">
+        <button type="button" role="tab" id="frame-tab" aria-controls="frame-collection" aria-selected="true">Frames</button>
+        <button type="button" role="tab" id="temple-tab" aria-controls="temple-collection" aria-selected="false" tabindex="-1">Temples</button>
+        <button type="button" id="styles-toggle" aria-controls="frame-collection temple-collection" aria-expanded="true">Hide</button>
+      </div>
+      <div id="frame-collection" role="tabpanel" aria-labelledby="frame-tab">
+      <div class="style-heading"><h2 id="style-name" aria-live="polite">Original</h2><span>9 styles · fitted to you</span></div>
+      <p id="style-description">Choose a silhouette to try on, then make it yours in Frame style.</p>
+      <div id="style-list" role="group" aria-label="Choose a frame style"></div>
+      </div>
+      <div id="temple-collection" role="tabpanel" aria-labelledby="temple-tab" hidden>
+        <div class="style-heading"><h2 id="temple-name" aria-live="polite">Soft bend</h2><span>6 bends · any frame</span></div>
+        <p id="temple-description">Choose a side profile. Keep it when you switch frame styles.</p>
+        <div id="temple-list" role="group" aria-label="Choose a temple bend"></div>
+      </div>
+    </section>
+    <div id="drop">Drop a GNM .npz, an identity .json, or glasses to try on (.obj)</div>
+    <div id="error"></div>
+    <div id="tip" role="tooltip"></div>
+  </body>
+</html>
